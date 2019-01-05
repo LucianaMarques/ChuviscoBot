@@ -141,5 +141,4 @@ def checa_se_vai_rolar_evento(bot, job):
                                     KeyboardButton(text="Não... foi cancelado.")]]))
         # TODO: ler a resposta do usuário e fazer alguma coisa.
 
-
 bot_run()
