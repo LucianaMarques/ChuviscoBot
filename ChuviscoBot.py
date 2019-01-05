@@ -71,5 +71,10 @@ def cmd_agenda(bot, update):
                    text=(f"Próximos eventos:\n{eventos_proximos}\n\n"
                          f"Eventos regulares:\n{eventos_regulares}\n"))
 
+@bot_command
+def cmd_cadastro(bot, update):
+  """Cadastra um novo evento na wiki"""
+  pass
+
 
 bot_run()
