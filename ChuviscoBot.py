@@ -96,12 +96,18 @@ def cmd_status(bot, update):
   if(infogaroa.status == "true"):
     bot.send_message(chat_id=update.message.chat_id,
                    parse_mode="HTML",
-                   text=f"O garoa está aberto :-) \n") 
+                   text=f"O garoa está aberto :-) \n")
+    #add the sendSticker method
+    #bot.sendSticker(chat_id, sticker)
   else:
     bot.send_message(chat_id=update.message.chat_id,
                    parse_mode="HTML",
                    text=f"O garoa está fechado :-( \n") 
+    #add the sendSticker method
 
+#create a sticker set used by the commands
+def status_stickers():
+    pass
 
 def get_chat_id(group_link):
   """ Dado um nome de grupo como "DS_Garoa" extraido
