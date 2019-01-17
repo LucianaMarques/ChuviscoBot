@@ -22,82 +22,278 @@
 #  MA 02110-1301, USA.
 #  
 #  
-import pywikibot
-from pywikibot.config2 import register_family_file
-
 URL_WIKI = "https://garoa.net.br"
-register_family_file('garoa', URL_WIKI)
-site = pywikibot.Site()
 
 
+def replace_wikilinks(original):
+  if "[[" not in original or "]]" not in original:
+    return original
+
+  try:
+    parts = original.split("[[")
+    a = parts.pop(0)
+    b = "[[".join(parts)
+
+    parts = b.split("]]")
+    b = parts.pop(0)
+    c = "]]".join(parts)
+
+    pagename = b
+    title = b
+    if "|" in b:
+      pagename, title = b.split("|")
+    com_link = f"{a}<a href='{URL_WIKI}/wiki/{pagename}'>{title}</a>{c}"
+    if "[[" in com_link and "]]" in com_link:
+      return replace_wikilinks(com_link)
+    else:
+      return com_link
+  except:
+    return original
+
+
+def replace_external_links(original):
+  if "[" not in original or "]" not in original:
+    return original
+
+  try:
+    parts = original.split("[")
+    a = parts.pop(0)
+    b = "[".join(parts)
+
+    parts = b.split("]")
+    b = parts.pop(0)
+    c = "]".join(parts)
+    
+    x = b.split()
+    url = x.pop(0)
+    title = " ".join(x)
+    com_link = f"{a}<a href='{url}'>{title}</a>{c}"
+    if "[" in com_link and "]" in com_link:
+      return replace_external_links(com_link)
+    else:
+      return com_link
+  except:
+    return original
+
+
+def replace_links(txt):
+  txt = replace_wikilinks(txt)
+  txt = replace_external_links(txt)
+  return txt
+
+MESES = ["JAN", "FEV", "MAR", "ABR",
+         "MAI", "JUN", "JUL", "AGO",
+         "SET", "OUT", "NOV", "DEZ"]
 
 class Evento:
   def __init__(self, line, recorrencia=False):
+    self.a_partir = None
     if recorrencia:
       self.parse_evento_regular(line, recorrencia)
     else:
       self.parse_evento(line)
 
+  def date_string(self, sep=":", a_partir_das=""):
+    dia = str(self.dia)
+    h = str(self.hora)
+    m = str(self.minuto)
+    if self.dia < 10: dia = f"0{dia}"
+    if self.hora < 10: h = f"0{h}"
+    if self.minuto < 10: m = f"0{m}"
+    mes = MESES[self.mes - 1]
+    data = f"{self.dia_da_semana}, {dia}/{mes}/{self.ano} {a_partir_das}{h}{sep}{m}"
+    return data
 
-  def __str__(self):
-    return self.__repr__()
+  def to_html(self):
+    # o parser de HTML do Telegram não entende a tag "<br/>"
+    # então vou substituir por um espaço:
+    nome = " ".join(self.nome.split("<br/>"))
 
-
-  def __repr__(self):
-    if self.recorrencia:
-      return f"<strong>{self.data}:</strong> {self.nome} ({self.recorrencia})"
+    if self.a_partir:
+      a_partir_das = "a partir das "
     else:
-      return f"<strong>{self.data}:</strong> {self.nome}"
+      a_partir_das = ""
+
+    if self.recorrencia == "Semanal":
+      dia = self.dia_da_semana.lower()
+      dia = dia[0].upper() + dia[1:]
+      DIAS_DA_SEMANA = [
+        "Segunda",
+        "Terça",
+        "Quarta",
+        "Quinta",
+        "Sexta",
+      ]
+      if dia not in ["Sábado", "Domingo"]:
+        dia = f"{DIAS_DA_SEMANA.index(dia)+2}as-feira"
+
+      h = str(self.hora)
+      m = str(self.minuto)
+      if self.hora < 10: h = f"0{h}"
+      if self.minuto < 10: m = f"0{m}"
+
+      return f"<strong>{dia}s, {a_partir_das}{h}h{m}:</strong>\n{nome}"
+    elif self.recorrencia == "Mensal":
+      if self.dia_da_semana in ["Sábado", "Domingo"]:
+        dia_da_semana = self.dia_da_semana.lower()
+        if self.ordem == -1:
+          ordem = "Último"
+        else:
+          ordem = f"{self.ordem}º"
+      else:
+        dia_da_semana = f"{self.dia_da_semana.lower()}-feira"
+        if self.ordem == -1:
+          ordem = "Última"
+        else:
+          ordem = f"{self.ordem}ª"
+
+      h = str(self.hora)
+      m = str(self.minuto)
+      if self.hora < 10: h = f"0{h}"
+      if self.minuto < 10: m = f"0{m}"
+      return f"<strong>{ordem} {dia_da_semana} do mês, {a_partir_das}{h}h{m}:</strong>\n{nome}"
+    else:
+      return f"<strong>{self.date_string(sep=':', a_partir_das=a_partir_das)}:</strong> {nome}"
 
 
-  def replace_wikilink(self, original):
-    try:
-      a, b = original.split("[[")
-      b, c = b.split("]]")
-      pagename = b
-      title = b
-      if "|" in b:
-        pagename, title = b.split("|")
-      com_link = f"{a}<a href='{URL_WIKI}/wiki/{pagename}'>{title}</a>{c}"
-      return com_link
-    except:
-      return original
+  def to_wikicode(self):
+    # o parser de HTML do Telegram não entende a tag "<br/>"
+    # então vou substituir por um espaço:
+    nome = " ".join(self.nome.split("<br/>"))
 
+    if self.a_partir:
+      a_partir_das = "a partir das "
+    else:
+      a_partir_das = ""
 
-  def replace_external_link(self, original):
-    try:
-      a, b = original.split("[")
-      b, c = b.split("]")
-      x = b.split()
-      url = x.pop(0)
-      title = " ".join(x)
-      com_link = f"{a}<a href='{url}'>{title}</a>{c}"
-      return com_link
-    except:
-      return original
+    if self.recorrencia == "Semanal":
+      dia = self.dia_da_semana.lower()
+      dia = dia[0].upper() + dia[1:]
+      DIAS_DA_SEMANA = [
+        "Segunda",
+        "Terça",
+        "Quarta",
+        "Quinta",
+        "Sexta",
+      ]
+      if dia not in ["Sábado", "Domingo"]:
+        dia = f"{DIAS_DA_SEMANA.index(dia)+2}as-feira"
 
+      h = str(self.hora)
+      m = str(self.minuto)
+      if self.hora < 10: h = f"0{h}"
+      if self.minuto < 10: m = f"0{m}"
+      return f"*'''{dia}s, {a_partir_das}{h}h{m}:'''<br/>{nome}"
+    elif self.recorrencia == "Mensal":
+      if self.dia_da_semana in ["Sábado", "Domingo"]:
+        dia_da_semana = self.dia_da_semana.lower()
+        if self.ordem == -1:
+          ordem = "Último"
+        else:
+          ordem = f"{self.ordem}º"
+      else:
+        dia_da_semana = f"{self.dia_da_semana.lower()}-feira"
+        if self.ordem == -1:
+          ordem = "Última"
+        else:
+          ordem = f"{self.ordem}ª"
 
-  def replace_links(self, txt):
-    txt = self.replace_wikilink(txt)
-    txt = self.replace_external_link(txt)
-    return txt
+      h = str(self.hora)
+      m = str(self.minuto)
+      if self.hora < 10: h = f"0{h}"
+      if self.minuto < 10: m = f"0{m}"
+      return f"*'''{ordem} {dia_da_semana} do mês, {a_partir_das}{h}h{m}:'''<br/>{nome}"
+    else:
+      return f"*'''{self.date_string(sep=':', a_partir_das=a_partir_das)}:''' {nome}"
 
 
   def parse_evento(self, line):
     head, tail = line.strip().split(":'''")
 
-    self.nome = self.replace_links(tail)
+    self.nome = replace_links(tail).strip()
     self.recorrencia = None
     self.data = head.split("*'''")[1]
+    self.parse_data_de_evento()
 
 
   def parse_evento_regular(self, line, recorrencia):
     head, tail = line.strip().split(":'''")
 
-    self.nome = self.replace_links(tail)
+    self.nome = replace_links(tail)
     self.recorrencia = recorrencia
     self.data = head.split("*'''")[1]
+    if recorrencia == "Mensal":
+      a, b = self.data.split(" do mês, ")
+      ordem, d = a.split()
+      if "-feira" in d:
+        d = d.split("-feira")[0]
+      if "ltim" in ordem:
+        self.ordem = -1
+      else:
+        self.ordem = int(ordem[0])
+      self.dia_da_semana = d[0].upper() + d[1:]
+    elif recorrencia == "Semanal":
+      a, b = self.data.split(", ")
+      self.ordem = None
+      DIAS = {
+        "2as-feiras": "Segunda",
+        "3as-feiras": "Terça",
+        "4as-feiras": "Quarta",
+        "5as-feiras": "Quinta",
+        "6as-feiras": "Sexta",
+        "Sábados": "Sábado",
+        "Domingos": "Domingo"
+      }
+      self.dia_da_semana = DIAS[a]
 
+    if "a partir das" in b:
+      self.a_partir = True
+      b = b.split("a partir das")[1]
+
+    h, m = b.split("h")
+    self.hora = int(h)
+    self.minuto = int(m)
+
+  def parse_data_de_evento(self):
+    self.dia_da_semana = self.data.split(", ")[0].strip()
+    partes = self.data.split()
+    _ = partes.pop(0)
+    data = partes.pop(0)
+    hora = " ".join(partes)
+
+    if "a partir das" in hora:
+      self.a_partir = True
+      hora = hora.split("a partir das")[1]
+
+    dia, mes, ano = data.split("/")
+    self.dia = int(dia)
+    self.mes = 1 + MESES.index(mes)
+    self.ano = int(ano)
+    h, m = hora.split(":")
+    self.hora = int(h)
+    self.minuto = int(m)
+
+
+  def dias_para_o_evento(self):
+    """ Calcula quantos dias falta para a data
+        de um evento agendado. Esse cálculo é
+	"impreciso" porém reflete a interpretação
+	mais comum que as pessoas esperam,
+	desconsiderando a qunatidade exata de horas
+	entre o agora exato e o horário do evento.
+    """
+    import datetime
+    hoje = datetime.datetime.today()
+    event_time = datetime.datetime(self.ano,
+                                   self.mes,
+                                   self.dia,
+                                   23, 59) # 1 minuto antes da meia-noite
+                                           # de modo a se ter resultados
+                                           # coerentes, independente do horário
+                                           # do dia em que o método é chamado
+                                           # (ou seja, não importam os horários)
+    falta = event_time - hoje
+    return falta.days
 
 class Agenda():
   # As rotinas de parsing abaixo são um tanto estritas e só entendem uma formatação bem específica
@@ -106,12 +302,18 @@ class Agenda():
   # Por enquanto as rotinas abaixo são suficientes como prova de conceito.
 
   def __init__(self):
-    self.page_regulares = pywikibot.Page(site, "Eventos Regulares")
-    self.page_proximos = pywikibot.Page(site, "Próximos Eventos")
+    from pywikibot import Site
+    from pywikibot.config2 import register_family_file
+    register_family_file('garoa', URL_WIKI)
+    self.site = Site()
+    self.page_regulares = None
+    self.page_proximos = None
     self.load_Proximos_Eventos()
     self.load_Eventos_Regulares()
 
   def load_Eventos_Regulares(self):
+    from pywikibot import Page
+    self.page_regulares = Page(self.site, "Eventos Regulares")
     self.regulares = []
     comment = False
     for line in self.page_regulares.text.split('\n'):
@@ -148,6 +350,8 @@ class Agenda():
 
 
   def load_Proximos_Eventos(self):
+    from pywikibot import Page
+    self.page_proximos = Page(self.site, "Próximos Eventos")
     self.proximos = []
     for line in self.page_proximos.text.split('\n'):
       if line.startswith("*'''"):
