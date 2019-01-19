@@ -147,7 +147,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'ChuviscoBot.tex', 'Documentação ChuviscoBot',
+    (master_doc, 'ChuviscoBot.tex', u'Documentação ChuviscoBot',
      author, 'manual'),
 ]
 
@@ -157,7 +157,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'chuviscobot', 'Documentação ChuviscoBot',
+    (master_doc, 'chuviscobot', u'Documentação ChuviscoBot',
      [author], 1)
 ]
 
